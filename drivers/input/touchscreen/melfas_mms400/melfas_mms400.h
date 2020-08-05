@@ -54,6 +54,11 @@
 #include <linux/sec_debug.h>
 #endif
 
+#ifdef CONFIG_FB
+#include <linux/notifier.h>
+#include <linux/fb.h>
+#endif
+
 #ifdef CONFIG_SEC_DEBUG_TSP_LOG
 #define tsp_debug_dbg(mode, dev, fmt, ...)	\
 ({								\
@@ -266,7 +271,9 @@ struct mms_ts_info {
 	u8 tsp_dump_lock;
 	u8 add_log_header;
 #endif
-
+#ifdef CONFIG_FB
+	struct notifier_block fb_notif;
+#endif
 };
 
 /**
