@@ -12,7 +12,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  */
-#define DEBUG
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
@@ -268,7 +267,7 @@ static void sec_jack_set_type(struct sec_jack_info *hi,
 	}
 
 	if ((jack_type == SEC_HEADSET_4POLE) ||
-		(jack_type == SEC_EXTERNAL_ANTENNA)) {
+	    (jack_type == SEC_EXTERNAL_ANTENNA)) {
 		/* for a 4 pole headset, enable detection of send/end key */
 		if (hi->send_key_dev == NULL)
 			/* enable to get events again */
@@ -280,6 +279,9 @@ static void sec_jack_set_type(struct sec_jack_info *hi,
 		mod_timer(&hi->timer,
 			  jiffies + msecs_to_jiffies(1000));
 	} else {
+		/* micbias is left enabled for 4pole and disabled otherwise */
+		set_sec_micbias_state(hi, false);
+
 		/* for all other jacks, disable send/end key detection */
 		if (hi->send_key_dev != NULL) {
 			/* disable to prevent false events on next insert */
@@ -288,8 +290,6 @@ static void sec_jack_set_type(struct sec_jack_info *hi,
 			del_timer_sync(&hi->timer);
 			hi->buttons_enable = false;
 		}
-		/* micbias is left enabled for 4pole and disabled otherwise */
-		set_sec_micbias_state(hi, false);
 	}
 
 	hi->cur_jack_type = jack_type;
@@ -534,7 +534,7 @@ static struct sec_jack_platform_data
 	pdata->key_gpio = of_get_named_gpio(dev->of_node, "key-gpio", 0);
 	if (pdata->key_gpio < 0) {
 		dev_err(dev, "Failed to find key-gpio\n");
-//		goto of_parse_err;
+		goto of_parse_err;
 	}
 
 	pdata->ear_micbias_en_gpio = of_get_named_gpio(dev->of_node,
@@ -714,7 +714,7 @@ static int sec_jack_probe(struct platform_device *pdev)
 		sec_jack_key_info.debounce_time.tv64
 				= pdata->key_debounce_time_ms * NSEC_PER_MSEC;
 
-	ret = request_irq(hi->det_irq, sec_jack_detect_irq,
+	ret = request_threaded_irq(hi->det_irq, NULL, sec_jack_detect_irq,
 		IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING |
 		IRQF_ONESHOT, "sec_headset_detect", hi);
 	if (ret) {
@@ -770,6 +770,7 @@ static int sec_jack_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "Registering sec_jack driver\n");
 	return 0;
+
 err_dev_attr_mic_adc:
 	device_remove_file(earjack, &dev_attr_state);
 err_dev_attr_state:

@@ -39,8 +39,8 @@ struct sec_jack_buttons_zone {
 
 struct sec_jack_control_data {
 	int snd_card_registered;
-	int (*set_micbias) (bool);
-	int (*get_adc) (void);
+	int (*set_micbias)(bool);
+	int (*get_adc)(void);
 };
 
 struct sec_jack_platform_data {
