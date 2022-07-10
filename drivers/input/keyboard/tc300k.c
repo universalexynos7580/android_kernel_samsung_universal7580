@@ -43,6 +43,11 @@
 #include <linux/sec_batt.h>
 #endif
 
+#ifdef CONFIG_FB
+#include <linux/notifier.h>
+#include <linux/fb.h>
+#endif
+
 /* TSK IC */
 #define TC300K_TSK_IC	0x00
 #define TC350K_TSK_IC	0x01
@@ -234,6 +239,10 @@ struct tc300k_data {
 	struct pinctrl *pinctrl_i2c;
 	struct pinctrl *pinctrl_irq;
 	struct pinctrl_state *pin_state[4];
+
+#ifdef CONFIG_FB
+	struct notifier_block fb_notif;
+#endif
 };
 
 extern struct class *sec_class;
@@ -2378,6 +2387,11 @@ static void tc300_config_gpio_i2c(struct tc300k_data *data, int onoff)
 	mdelay(100);
 }
 
+#ifdef CONFIG_FB
+static int fb_notifier_callback(struct notifier_block *self,
+	unsigned long event, void *data);
+#endif
+
 static int __devinit tc300k_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
@@ -2558,6 +2572,12 @@ static int __devinit tc300k_probe(struct i2c_client *client,
 					__func__);
 		}
 
+#ifdef CONFIG_FB
+	data->fb_notif.notifier_call = fb_notifier_callback;
+	if (fb_register_client(&data->fb_notif))
+		pr_err("%s: could not create fb notifier\n", __func__);
+#endif
+
 	dev_set_drvdata(data->sec_touchkey, data);
 
 	dev_info(&client->dev, "[TK] %s done\n", __func__);
@@ -2589,6 +2609,9 @@ static int __devexit tc300k_remove(struct i2c_client *client)
 	free_irq(client->irq, data);
 	input_unregister_device(data->input_dev);
 	input_free_device(data->input_dev);
+#ifdef CONFIG_FB
+	fb_unregister_client(&data->fb_notif);
+#endif
 	mutex_destroy(&data->lock);
 	mutex_destroy(&data->lock_fac);
 	data->pdata->keyled(false);
@@ -2731,6 +2754,35 @@ static int tc300k_input_open(struct input_dev *dev)
 	return 0;
 }
 #endif /* CONFIG_PM */
+
+#ifdef CONFIG_FB
+static int fb_notifier_callback(struct notifier_block *self,
+				unsigned long event, void *data)
+{
+	struct fb_event *evdata = data;
+	struct tc300k_data *tc_data = container_of(self, struct tc300k_data, fb_notif);
+
+	if (evdata && evdata->data && event == FB_EVENT_BLANK) {
+		int *blank = evdata->data;
+		switch (*blank) {
+		case FB_BLANK_UNBLANK:
+		case FB_BLANK_NORMAL:
+		case FB_BLANK_VSYNC_SUSPEND:
+		case FB_BLANK_HSYNC_SUSPEND:
+			tc300k_input_open(tc_data->input_dev);
+			break;
+		case FB_BLANK_POWERDOWN:
+			tc300k_input_close(tc_data->input_dev);
+			break;
+		default:
+			/* Don't handle what we don't understand */
+			break;
+		}
+	}
+
+	return 0;
+}
+#endif
 
 #if 0
 #if defined(CONFIG_PM) || defined(CONFIG_HAS_EARLYSUSPEND)
