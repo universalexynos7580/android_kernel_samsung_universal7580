@@ -242,6 +242,7 @@ static inline sdfat_timespec_t current_time(struct inode *inode)
 	return CURRENT_TIME_SEC;
 }
 #endif
+
 /*
  * FIXME : needs on-disk-slot in-memory data
  */

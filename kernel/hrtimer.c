@@ -341,6 +341,7 @@ s64 __ktime_divns(const ktime_t kt, s64 div)
 
 	dclc = ktime_to_ns(kt);
 	tmp = dclc < 0 ? -dclc : dclc;
+
 	/* Make sure the divisor is less than 2^32: */
 	while (div >> 32) {
 		sft++;
