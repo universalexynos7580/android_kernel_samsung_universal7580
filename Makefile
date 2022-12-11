@@ -711,6 +711,12 @@ KBUILD_CFLAGS += $(call cc-disable-warning, maybe-uninitialized)
 # disable invalid "can't wrap" optimizations for signed / pointers
 KBUILD_CFLAGS	+= $(call cc-option,-fno-strict-overflow)
 
+# disable possible unused command line argument
+KBUILD_CFLAGS	+= $(call cc-option,-Wno-unused-command-line-argument)
+
+# handle ld flags
+LDFLAGS := $(HOSTLDFLAGS)
+
 # clang sets -fmerge-all-constants by default as optimization, but this
 # is non-conforming behavior for C and in fact breaks the kernel, so we
 # need to disable it here generally.
